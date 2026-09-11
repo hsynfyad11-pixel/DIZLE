@@ -1,0 +1,187 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Shop {
+  id             String   @id @default(cuid())
+  name           String
+  nameAr         String
+  phone          String?
+  password       String?
+  description    String?
+  category       String   @default("STANDARD") 
+  deliveryFee    Int      @default(1500)
+  minOrderAmount Int      @default(15000) // Minimum order threshold in IQD
+  imageUrl       String?
+  areaName       String?
+  rating         Float    @default(5.0)
+  isAvailable    Boolean  @default(true)
+  isFeatured     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  products Product[]
+  orders   Order[]
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  shopId          String
+
+  name            String?
+  nameAr          String
+  category        String   @default("المستلزمات العامة")
+  description     String?
+  price           Int
+  imageUrl        String?
+  isAvailable     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  shop          Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  orderItems    OrderItem[]
+}
+
+model Driver {
+  id             String   @id @default(cuid())
+  name           String
+  phone          String   @unique
+  pinCode        String   @default("123456")
+  vehicle        String?
+  vehicleImage   String?
+  vehiclePlateImage String?
+  currentDebt    Int      @default(0) // Accumulated debt / cash collected in IQD
+  maxCreditLimit Int      @default(50000) // Maximum allowed debt threshold in IQD
+  isAvailable    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orders Order[]
+  repaymentRequests RepaymentRequest[]
+  transportRequests TransportRequest[]
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  shopId         String
+  driverId       String?
+  customerName   String
+  customerPhone  String
+  deliveryArea   String
+  houseImage     String?
+  totalPrice     Int
+  deliveryFee    Int
+  grandTotal     Int
+  status            String      @default("PENDING") // PENDING, ACCEPTED, PREPARING, ON_THE_WAY, DELIVERED, CANCELLED
+  transportMode     String?     // Transport vehicle selected by store: دراجة نارية / سيارة / شاحنة خفيفة
+  allowSubstitution Boolean     @default(true)
+  substitutionPreference String?
+  notes             String?
+  telegramMessageId Int?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  shop       Shop        @relation(fields: [shopId], references: [id])
+  driver     Driver?     @relation(fields: [driverId], references: [id])
+  items      OrderItem[]
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  orderId        String
+  productId      String
+  quantity       Int
+  unitPrice      Int
+  status         String  @default("AVAILABLE") // AVAILABLE, OUT_OF_STOCK_HAS_ALTERNATIVE, ALTERNATIVE_ACCEPTED, ALTERNATIVE_REJECTED
+  altProductName String?
+  altUnitPrice   Int?
+  altNote        String?
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model JoinRequest {
+  id              String   @id @default(cuid())
+  type            String   @default("SHOP") // SHOP or DRIVER
+  name            String   // Store Owner Name or Driver Name
+  ownerName       String?
+  phone           String
+  shopName        String?
+  area            String?  // Written address (Optional for driver)
+  mapCoordinates  String?  // Coordinates / Map Link
+  storeFrontImage String?  // Store Front Image URL
+  vehicle         String?
+  vehicleImage    String?
+  vehiclePlateImage String?
+  minOrderAmount  Int?     // Target minimum order amount
+  notes           String?
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProfileUpdateRequest {
+  id            String   @id @default(cuid())
+  entityId      String   // Shop ID or Driver ID
+  entityType    String   // "SHOP" or "DRIVER"
+  requestedData String   // JSON string of requested changes
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model RepaymentRequest {
+  id            String   @id @default(cuid())
+  driverId      String
+  amount        Int
+  receiptImage  String
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  driver        Driver   @relation(fields: [driverId], references: [id])
+}
+
+model TransportRequest {
+  id              String   @id @default(cuid())
+  type            String   // "PEOPLE" (أشخاص) or "PARCEL" (أمانة)
+  pickupLocation  String
+  pickupLat       Float?
+  pickupLng       Float?
+  dropoffLocation String
+  dropoffLat      Float?
+  dropoffLng      Float?
+  notes           String?
+  customerPhone   String
+  recipientPhone  String?
+  price           Int      @default(1500)
+  proposedPrice   Int?
+  status          String   @default("PENDING") // PENDING, NEGOTIATING, ACCEPTED, COMPLETED, CANCELLED
+  driverId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  driver          Driver?  @relation(fields: [driverId], references: [id])
+}
