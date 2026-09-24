@@ -141,7 +141,7 @@ export default function HomePage() {
       </section>
 
       {/* Transport / Delivery Services Banner - أوصلني */}
-      <a href="/transport" className="block w-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white rounded-3xl p-5 shadow-2xl shadow-emerald-500/20 border border-emerald-400 overflow-hidden relative group">
+      <a href="/transport/request" className="block w-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white rounded-3xl p-5 shadow-2xl shadow-emerald-500/20 border border-emerald-400 overflow-hidden relative group">
         <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:scale-105 duration-500"></div>
         <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-4">
