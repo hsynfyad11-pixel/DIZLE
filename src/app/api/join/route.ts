@@ -1,77 +1,61 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-
-export const dynamic = 'force-dynamic';
+import { db } from '@/lib/db';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      type = 'SHOP',
+      type,
       ownerName,
-      name,
-      shopName,
       phone,
+      shopName,
       area,
-      mapCoordinates,
-      storeFrontImage,
       minOrderAmount,
       notes,
       pinCode,
-      vehicle,
-      vehicleImage,
-      vehiclePlateImage,
     } = body;
 
-    const applicantName = ownerName || name;
-    const targetShopName = shopName || name;
-
-    if (!applicantName || !phone || (type === 'SHOP' && !area)) {
+    if (!ownerName || !phone || !pinCode) {
       return NextResponse.json(
-        { success: false, error: 'اسم صاحب الطلب، رقم الهاتف، والموقع (للمتجر) حقول مطلوبة' },
+        { success: false, error: 'يرجى ملء الحقول الإجبارية الأساسية' },
         { status: 400 }
       );
     }
 
-    const parsedMinOrderAmount = minOrderAmount ? parseInt(minOrderAmount, 10) : undefined;
+    const hashedPassword = await bcrypt.hash(pinCode, 10);
 
-    const joinReq = await prisma.joinRequest.create({
-      data: {
-        type: type === 'DRIVER' ? 'DRIVER' : 'SHOP',
-        name: applicantName,
-        ownerName: applicantName,
-        phone: phone.trim(),
-        shopName: type === 'SHOP' ? targetShopName : null,
-        area: area ? area.trim() : null,
-        mapCoordinates: mapCoordinates ? mapCoordinates.trim() : null,
-        storeFrontImage: storeFrontImage ? storeFrontImage.trim() : null,
-        vehicle: vehicle ? vehicle.trim() : null,
-        vehicleImage: vehicleImage ? vehicleImage.trim() : null,
-        vehiclePlateImage: vehiclePlateImage ? vehiclePlateImage.trim() : null,
-        minOrderAmount: isNaN(parsedMinOrderAmount!) ? null : parsedMinOrderAmount,
-        notes: notes ? notes.trim() : null,
-        status: 'PENDING',
-      },
-    });
+    if (type === 'SHOP') {
+      if (!shopName || !area) {
+        return NextResponse.json(
+          { success: false, error: 'اسم المتجر والمنطقة حقول إجبارية للمتاجر' },
+          { status: 400 }
+        );
+      }
 
-    if (pinCode) {
-      await prisma.systemSetting.create({
+      await db.shop.create({
         data: {
-          key: `joinReq_pin_${joinReq.id}`,
-          value: pinCode
-        }
+          name: shopName,
+          nameAr: shopName,
+          phone: phone,
+          password: hashedPassword,
+          description: notes || '',
+          category: 'STANDARD',
+          deliveryFee: 1500,
+          minOrderAmount: minOrderAmount ? parseInt(minOrderAmount) : 15000,
+          areaName: area,
+        },
       });
     }
 
     return NextResponse.json({
       success: true,
-      requestId: joinReq.id,
       message: 'تم إرسال طلبك بنجاح، سيتم مراجعته وتفعيل حسابك من قبل الإدارة قريباً.',
     });
   } catch (error) {
-    console.error('Error submitting join request:', error);
+    console.error('API Join Error:', error);
     return NextResponse.json(
-      { success: false, error: 'حدث خطأ أثناء إرسال طلب الانضمام' },
+      { success: false, error: 'حدث خطأ في الخادم أثناء حفظ البيانات، يرجى المحاولة لاحقاً' },
       { status: 500 }
     );
   }
