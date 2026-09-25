@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import bcrypt from 'bcryptjs';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   try {
@@ -23,8 +24,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(pinCode, 10);
-
     if (type === 'SHOP') {
       if (!shopName || !area) {
         return NextResponse.json(
@@ -33,12 +32,12 @@ export async function POST(request: Request) {
         );
       }
 
-      await db.shop.create({
+      await prisma.shop.create({
         data: {
           name: shopName,
           nameAr: shopName,
           phone: phone,
-          password: hashedPassword,
+          password: pinCode, // حفظ الرمز مباشرة لتجاوز خطأ التشفير
           description: notes || '',
           category: 'STANDARD',
           deliveryFee: 1500,
